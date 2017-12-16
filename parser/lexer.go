@@ -4,7 +4,8 @@ package parser
 // for a service which deals with tokenising
 // an input slice of code points.
 type Lexer interface {
-	Tokenise(input []rune) ([]*Token, error)
+	Tokenise(input []rune, goal LexicalGoalSymbol) ([]*Token, error)
+	Reset()
 }
 
 // NewLexer creates a new instance of the default
@@ -35,18 +36,27 @@ type lexerImpl struct {
 
 // Tokenise deals with generating a list of tokens for the given input
 // data.
-func (l *lexerImpl) Tokenise(input []rune) ([]*Token, error) {
+func (l *lexerImpl) Tokenise(input []rune, goal LexicalGoalSymbol) ([]*Token, error) {
 	l.currentInput = input
 	var err error
 	i := 0
 	for err == nil && i < len(input) {
 		var tkn *Token
 		var nextPos int
-		tkn, nextPos, err = NextToken(i, input, l.charMap, l.pMap, l.kwMap, l.frwMap)
+		tkn, nextPos, err = NextToken(i, input, l.charMap, l.pMap, l.kwMap, l.frwMap, goal)
 		if err == nil {
-			l.currentTokens = append(l.currentTokens, tkn)
+			if tkn != nil {
+				l.currentTokens = append(l.currentTokens, tkn)
+			}
 			i = nextPos
 		}
 	}
 	return l.currentTokens, err
+}
+
+// Reset deals with resetting the lexer and clearing the token
+// table and current input data.
+func (l *lexerImpl) Reset() {
+	l.currentInput = []rune{}
+	l.currentTokens = []*Token{}
 }

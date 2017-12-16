@@ -12,22 +12,6 @@ func TestProcessLineTerminator(t *testing.T) {
 	processTest(t, lineTerminatorData, "LineTerminator", ProcessLineTerminator)
 }
 
-func TestSkipNonToken(t *testing.T) {
-	buf := append([]rune{'\u0009', '\u000C'}, []rune("Next line")...)
-	charMap := map[string]map[rune]rune{
-		"whitespace": WhiteSpaceChars(),
-	}
-	nextPos := SkipNonToken(0, buf, charMap)
-	if nextPos != 2 {
-		t.Errorf("Expected next position for a start of a token to be 2 but got %v", nextPos)
-	}
-	buf = []rune("Our one and only piece of content")
-	nextPos = SkipNonToken(0, buf, charMap)
-	if nextPos != 0 {
-		t.Errorf("Expected next position for a start of a token to be 0 but got %v", nextPos)
-	}
-}
-
 func TestProcessComment(t *testing.T) {
 	var commentData = []testData{
 		{true, []rune("//Comment1"), 10, "Comment1", map[string]interface{}{

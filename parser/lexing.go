@@ -18,6 +18,19 @@ const (
 	MultiLineComment
 )
 
+// LexicalGoalSymbol provides a type alias
+// to distinguish between lexical goals during
+// the process of tokenisation.
+type LexicalGoalSymbol int
+
+const (
+	_ LexicalGoalSymbol = iota
+	InputElementDiv
+	InputElementRegExp
+	InputElementRegExpOrTemplateTail
+	InputElementTemplateTail
+)
+
 const (
 	MaxPunctuatorLength   = 4
 	MaxReservedWordLength = 10
@@ -103,28 +116,29 @@ func IsUnicodeEspaceSequence(pos int, buf []rune) (bool, int) {
 			return false, -1
 		}
 		return true, pos + 5
-	} else {
-		reachedEnd := false
-		allAreHex := true
-		i := pos + 2
-		for !reachedEnd && allAreHex && i < len(buf) {
-			if buf[i] == '}' {
-				reachedEnd = true
+	}
+	reachedEnd := false
+	allAreHex := true
+	i := pos + 2
+	for !reachedEnd && allAreHex && i < len(buf) {
+		if buf[i] == '}' {
+			reachedEnd = true
+		} else {
+			if !IsHexDigit(buf[i]) {
+				allAreHex = false
 			} else {
-				if !IsHexDigit(buf[i]) {
-					allAreHex = false
-				} else {
-					i++
-				}
+				i++
 			}
 		}
-		if !reachedEnd || !allAreHex {
-			return false, -1
-		}
-		return true, i + 1
 	}
+	if !reachedEnd || !allAreHex {
+		return false, -1
+	}
+	return true, i + 1
 }
 
+// IsHexDigit determines whether the provided code point
+// is a hexadecimal digit or not.
 func IsHexDigit(c rune) bool {
 	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
 		(c >= 'A' && c <= 'F')
@@ -133,62 +147,113 @@ func IsHexDigit(c rune) bool {
 // NextToken attempts to parse the next set of code points as a valid
 // token in the ECMAScript lexical grammar.
 func NextToken(pos int, buf []rune, charMap map[string]map[rune]rune,
-	pMap map[string]rune, kwMap map[string]rune, frwMap map[string]rune) (*Token, int, error) {
-	newPos := SkipNonToken(pos, buf, charMap)
-	if newPos >= len(buf) {
+	pMap map[string]rune, kwMap map[string]rune, frwMap map[string]rune, goal LexicalGoalSymbol) (*Token, int, error) {
+	if pos >= len(buf) {
 		// In the case there are no tokens then simply return nil
 		// for the token as well as the error as no tokens doesn't mean
 		// there is an error.
-		return nil, newPos, nil
+		return nil, pos, nil
 	}
-	c := buf[newPos]
+	c := buf[pos]
 	// Capture the next code point for cases we need to lookahead
 	// to determine the type of token. Default to unicode 0 as when we do lookaheads
 	// there is not a case where 0 is expected.
 	next := '0'
-	if newPos+1 < len(buf) {
-		next = buf[newPos+1]
+	if pos+1 < len(buf) {
+		next = buf[pos+1]
 	}
-	if tkn, endPos, err := ProcessDivPunctuator(newPos, buf); tkn != nil {
-		return tkn, endPos, err
-	} else if tkn, endPos, err := ProcessRightBracePunctuator(newPos, buf); tkn != nil {
+	// First attempt to extract production rules that exist across all the
+	// lexical goal symbols.
+	if tkn, endPos, err := ProcessWhiteSpace(pos, buf, charMap); endPos == pos+1 {
 		return tkn, endPos, err
 	} else if IsLineTerminator(c, charMap) {
-		return ProcessLineTerminator(newPos, buf)
+		return ProcessLineTerminator(pos, buf)
 	} else if isComment, commentType := IsStartOfComment(c, next); isComment {
 		// Processing comment is effectively like skipping non-tokens
 		// but we need to be more thorough as a comment that is multi-line and contains
 		// a line terminator, it will need to be stored as a LineTerminator token for the sake of syntax parsing.
-		return ProcessComment(newPos, buf, charMap, commentType)
-	} else if tkn, endPos, err := ProcessPunctuator(newPos, buf, pMap); tkn != nil {
+		return ProcessComment(pos, buf, charMap, commentType)
+	} else if tkn, endPos, err := ProcessCommonToken(
+		pos, buf, charMap, kwMap, frwMap, pMap,
+	); tkn != nil {
+		return tkn, endPos, err
+	}
+	// Now attempt to extract production rules specific to different lexical goal
+	// symbols.
+	switch goal {
+	case InputElementDiv:
+		if tkn, endPos, err := ProcessDivPunctuator(pos, buf); tkn != nil {
+			return tkn, endPos, err
+		} else if tkn, endPos, err := ProcessRightBracePunctuator(pos, buf); tkn != nil {
+			return tkn, endPos, err
+		}
+		break
+	case InputElementRegExp:
+		if tkn, endPos, err := ProcessRightBracePunctuator(pos, buf); tkn != nil {
+			return tkn, endPos, err
+		} else if tkn, endPos, err := ProcessRegExpLiteral(pos, buf, charMap); tkn != nil {
+			return tkn, endPos, err
+		}
+		break
+	case InputElementRegExpOrTemplateTail:
+		if tkn, endPos, err := ProcessRegExpLiteral(pos, buf, charMap); tkn != nil {
+			return tkn, endPos, err
+		} else if tkn, endPos, err := ProcessTemplateLiteral(pos, buf, charMap); tkn != nil {
+			if tkn.Name == "TemplateMiddle" || tkn.Name == "TemplateTail" {
+				return tkn, endPos, err
+			}
+		}
+		break
+	case InputElementTemplateTail:
+		if tkn, endPos, err := ProcessDivPunctuator(pos, buf); tkn != nil {
+			return tkn, endPos, err
+		} else if tkn, endPos, err := ProcessTemplateLiteral(pos, buf, charMap); tkn != nil {
+			if tkn.Name == "TemplateMiddle" || tkn.Name == "TemplateTail" {
+				return tkn, endPos, err
+			}
+		}
+		break
+	}
+	return nil, pos, fmt.Errorf("token error at %v for char %v for goal %v", pos, strconv.QuoteRune(c), goalName(goal))
+}
+
+// ProcessCommonToken deals with attempting to parse the next set of sequence points as a
+// common token.
+func ProcessCommonToken(pos int, buf []rune, charMap map[string]map[rune]rune,
+	kwMap map[string]rune, frwMap map[string]rune, pMap map[string]rune) (*Token, int, error) {
+	c := buf[pos]
+	if isIDStart, endofStart := IsStartOfIdentifier(c, pos, buf); isIDStart {
+		return ProcessIdentifier(buf[pos:endofStart], pos, endofStart, buf, kwMap, frwMap)
+	} else if tkn, endPos, err := ProcessPunctuator(pos, buf, pMap); tkn != nil {
 		// Since checking for a punctuator requires a bit more complexity than say,
 		// a comment we are doing the checking and processing to generate a token in one.
 		return tkn, endPos, err
-	} else if isIDStart, endofStart := IsStartOfIdentifier(c, newPos, buf); isIDStart {
-		return ProcessIdentifier(buf[newPos:endofStart], endofStart, buf)
-	} else if tkn, endPos, err := ProcessReservedWord(newPos, buf, kwMap, frwMap); tkn != nil {
+	} else if tkn, endPos, err := ProcessNumericLiteral(pos, buf); tkn != nil {
 		return tkn, endPos, err
-	} else if tkn, endPos, err := ProcessNumericLiteral(newPos, buf); tkn != nil {
+	} else if tkn, endPos, err := ProcessStringLiteral(pos, buf, charMap); tkn != nil {
 		return tkn, endPos, err
-	} else if tkn, endPos, err := ProcessRegExpLiteral(newPos, buf, charMap); tkn != nil {
-		return tkn, endPos, err
-	} else if tkn, endPos, err := ProcessStringLiteral(newPos, buf, charMap); tkn != nil {
-		return tkn, endPos, err
-	} else if tkn, endPos, err := ProcessTemplateLiteral(newPos, buf, charMap); tkn != nil {
-		return tkn, endPos, err
-	}
-	return nil, newPos, fmt.Errorf("token error at %v for char %v", newPos, strconv.QuoteRune(c))
-}
-
-func SkipNonToken(pos int, buf []rune, charMap map[string]map[rune]rune) int {
-	isWhiteSpace := true
-	for isWhiteSpace && pos < len(buf) {
-		_, isWhiteSpace = charMap["whitespace"][buf[pos]]
-		if isWhiteSpace {
-			pos++
+	} else if tkn, endPos, err := ProcessTemplateLiteral(pos, buf, charMap); tkn != nil {
+		if tkn.Name == "TemplateHead" || tkn.Name == "NoSubstitutionTemplate" {
+			return tkn, endPos, err
 		}
 	}
-	return pos
+	return nil, pos, fmt.Errorf("token error at %v for char %v", pos, strconv.QuoteRune(c))
+}
+
+// Gets the string representation of a lexical symbol goal.
+func goalName(goal LexicalGoalSymbol) string {
+	switch goal {
+	case InputElementDiv:
+		return "InputElementDiv"
+	case InputElementRegExp:
+		return "InputElementRegExp"
+	case InputElementRegExpOrTemplateTail:
+		return "InputElementRegExpOrTemplateTail"
+	case InputElementTemplateTail:
+		return "InputElementTemplateTail"
+	default:
+		return ""
+	}
 }
 
 func WhiteSpaceChars() map[rune]rune {
@@ -269,6 +334,16 @@ func Punctuators() map[string]rune {
 	}
 }
 
+// ProcessWhiteSpace attempts to read the current code point
+// as white space token.
+func ProcessWhiteSpace(pos int, buf []rune, charMap map[string]map[rune]rune) (*Token, int, error) {
+	_, isWhiteSpace := charMap["whitespace"][buf[pos]]
+	if isWhiteSpace {
+		return nil, pos + 1, nil
+	}
+	return nil, pos, nil
+}
+
 // ProcessLineTerminator reads line terminator code points into the
 // lexical analysis token table.
 func ProcessLineTerminator(pos int, buf []rune) (*Token, int, error) {
@@ -337,12 +412,15 @@ func ProcessComment(pos int, buf []rune, charMap map[string]map[rune]rune, comme
 func ProcessPunctuator(pos int, buf []rune, pMap map[string]rune) (*Token, int, error) {
 	liFloat := math.Min(float64(pos+MaxPunctuatorLength), float64(len(buf)-1))
 	lastIndex := int(liFloat)
-	candidate := string(buf[pos:lastIndex])
+	candidate := string(buf[pos])
+	if lastIndex > pos {
+		candidate = string(buf[pos:lastIndex])
+	}
 	punctuator := candidate
 	match := false
 	i := len(candidate)
-	for i > pos && !match {
-		punctuator = candidate[pos:i]
+	for i > 0 && !match {
+		punctuator = candidate[0:i]
 		_, match = pMap[punctuator]
 		if !match {
 			i--
@@ -356,6 +434,7 @@ func ProcessPunctuator(pos int, buf []rune, pMap map[string]rune) (*Token, int, 
 			Pos:   pos,
 		}, endPos, nil
 	}
+
 	return nil, -1, nil
 }
 
@@ -392,53 +471,37 @@ func ProcessRightBracePunctuator(pos int, buf []rune) (*Token, int, error) {
 	return nil, -1, nil
 }
 
-func ProcessReservedWord(pos int, buf []rune, kwMap map[string]rune, frwMap map[string]rune) (*Token, int, error) {
-	liFloat := math.Min(float64(pos+MaxReservedWordLength), float64(len(buf)-1))
-	lastIndex := int(liFloat)
-	candidate := string(buf[pos:lastIndex])
-	reservedWord := candidate
-	isKeyword := false
-	isFutureReservedWord := false
-	isBooleanLiteral := false
-	isNullLiteral := false
-	tokenType := ""
-	i := len(candidate)
-	for i > pos && !(isKeyword || isFutureReservedWord || isBooleanLiteral || isNullLiteral) {
-		reservedWord = candidate[pos:i]
-		_, isKeyword = kwMap[reservedWord]
-		if !isKeyword {
-			_, isFutureReservedWord = frwMap[reservedWord]
-			if !isFutureReservedWord {
-				isBooleanLiteral = reservedWord == "false" || reservedWord == "true"
-				if !isBooleanLiteral {
-					isNullLiteral = reservedWord == "null"
-					if isNullLiteral {
-						tokenType = "NullLiteral"
-					} else {
-						i-- // Reduce size of candidate as no match for current candidate.
-					}
-				} else {
-					tokenType = "BooleanLiteral"
+// ProcessReservedWord takes the value of an identifier token and transforms
+// it into a reserved word token if there is a reserved word match.
+func ProcessReservedWord(identTkn *Token, kwMap map[string]rune, frwMap map[string]rune) {
+	reservedWord := identTkn.Value
+	_, isKeyword := kwMap[reservedWord]
+	if !isKeyword {
+		_, isFutureReservedWord := frwMap[reservedWord]
+		if !isFutureReservedWord {
+			isBooleanLiteral := reservedWord == "false" || reservedWord == "true"
+			if !isBooleanLiteral {
+				isNullLiteral := reservedWord == "null"
+				if isNullLiteral {
+					identTkn.Name = "NullLiteral"
 				}
 			} else {
-				tokenType = "FutureReservedWord"
+				identTkn.Name = "BooleanLiteral"
 			}
 		} else {
-			tokenType = "Keyword"
+			identTkn.Name = "FutureReservedWord"
 		}
+	} else {
+		identTkn.Name = "Keyword"
 	}
-	if isKeyword || isFutureReservedWord || isBooleanLiteral || isNullLiteral {
-		endPos := pos + len(reservedWord)
-		return &Token{
-			Name:  tokenType,
-			Value: reservedWord,
-			Pos:   pos,
-		}, endPos, nil
-	}
-	return nil, -1, nil
 }
 
-func ProcessIdentifier(identifier []rune, pos int, buf []rune) (*Token, int, error) {
+// ProcessIdentifier deals with attempting to extract the next
+// sequence of code points as an identifier token.
+func ProcessIdentifier(
+	identifier []rune, startPos int, fromPos int, buf []rune,
+	kwMap map[string]rune, frwMap map[string]rune,
+) (*Token, int, error) {
 	// First ensure that what we have of an identifier so far is a valid
 	// code point in the case it is a unicode escape sequence.
 	if len(identifier) > 1 {
@@ -453,16 +516,16 @@ func ProcessIdentifier(identifier []rune, pos int, buf []rune) (*Token, int, err
 		}
 	}
 	reachedEnd := false
-	i := pos
-	idEndPos := pos + 1
+	i := fromPos
+	idEndPos := fromPos + 1
 	for !reachedEnd && i < len(buf) {
-		if isPart, endPos := IsIdentifierPart(pos, buf); isPart {
+		if isPart, endPos := IsIdentifierPart(i, buf); isPart {
 			if endPos > i+1 {
 				// The only way an identifier part has a length greater
 				// than one code point is where it is a unicode escape sequence.
 				// In the light of that we'll replace the escape sequence with the
 				// code point it represents.
-				codePoints := DecodeUnicodeEscSeq(buf[pos:endPos])
+				codePoints := DecodeUnicodeEscSeq(buf[i:endPos])
 				// Now our decoded code point must meet the same rules as any other
 				// code point in an identifier part.
 				isCodePointPart, _ := IsIdentifierPart(0, codePoints)
@@ -476,17 +539,19 @@ func ProcessIdentifier(identifier []rune, pos int, buf []rune) (*Token, int, err
 				identifier = append(identifier, buf[i])
 			}
 			i++
-			idEndPos += endPos
+			idEndPos = endPos
 		} else {
 			reachedEnd = true
 		}
 	}
 	if reachedEnd {
-		return &Token{
+		tkn := &Token{
 			Name:  "IdentifierName",
 			Value: string(identifier),
-			Pos:   pos,
-		}, idEndPos, nil
+			Pos:   startPos,
+		}
+		ProcessReservedWord(tkn, kwMap, frwMap)
+		return tkn, idEndPos, nil
 	}
 	return nil, -1, fmt.Errorf("identifier should terminate")
 }
