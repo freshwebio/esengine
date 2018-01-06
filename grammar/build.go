@@ -330,7 +330,7 @@ func removePrevProductions(prod *Production, prevProds []*Production) *Productio
 	return newProd
 }
 
-// Detemrines whether the provided rule exists in any of the provided
+// Determines whether the provided rule exists in any of the provided
 // right-hand side rule sets.
 func ruleExistsInAny(rule []RHSRuleSymbol, ruleSets ...[][]RHSRuleSymbol) bool {
 	found := false
