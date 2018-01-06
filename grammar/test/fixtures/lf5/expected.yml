@@ -1,0 +1,69 @@
+<A>:
+  params: [Default]
+  rhs:
+    -
+      - <B>
+      - <AA0>:
+          params:
+            passthrough: ['?Default']
+    -
+      - <D>
+      - <AA1>:
+          params:
+            passthrough: ['?Default']
+    - [powqe]
+<AA0>:
+  params: [Default]
+  rhs:
+    -
+      - <C>
+      - <AA0A0>:
+          params:
+            passthrough: ['?Default']
+    - ['[empty]']
+<AA1>:
+  params: [Default]
+  rhs:
+    -
+      - '['
+      - <AA1A0>:
+          params:
+            passthrough: ['?Default']
+<AA1A0>:
+  params: [Default]
+  rhs:
+    -
+      - <*Conditional*>:
+          params:
+            conditions: [+Default]
+          parts: [']']
+    - ['[empty]']
+<AA0A0>:
+  params: [Default]
+  rhs:
+    -
+      - '{'
+      - <AA0A0A0>:
+          params:
+            passthrough: ['?Default']
+<AA0A0A0>:
+  params: [Default]
+  rhs:
+    - [do, '}']
+    - [go, '}']
+<B>:
+  rhs:
+    - [<E>, <BA0>]
+<BA0>:
+  rhs:
+    - [gr]
+    - [ytez]
+<C>:
+  rhs:
+    - [new]
+<D>:
+  rhs:
+    - [end]
+<E>:
+  rhs:
+    - [start]

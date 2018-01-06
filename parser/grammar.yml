@@ -1,0 +1,2486 @@
+########################
+# Module productions
+########################
+<Module>:
+  rhs:
+    -
+      - <ModuleBody>:
+          params:
+            optional: true
+<ModuleBody>:
+  rhs:
+    - [<ModuleItemList>]
+<ModuleItemList>:
+  rhs:
+    - [<ModuleItem>]
+    - [<ModuleItemList>, <ModuleItem>]
+<ModuleItem>:
+  rhs:
+    - [<ImportDeclaration>]
+    - [<ExportDeclaration>]
+    - [<StatementListItem>]
+##########################
+# Script productions
+##########################
+<Script>:
+  rhs:
+    -
+      - <ScriptBody>:
+          params:
+            optional: true
+<ScriptBody>:
+  rhs:
+    - [<StatementList>]
+##########################
+# Import productions
+##########################
+<ImportDeclaration>:
+  rhs:
+    - [import, <ImportClause>, <FromClause>, ;]
+    - [import, <ModuleSpecifier>, ;]
+<ImportClause>:
+  rhs:
+    - [<ImportedDefaultBinding>]
+    - [<NameSpaceImport>]
+    - [<NamedImports>]
+    - [<ImportedDefaultBinding>, ',', <NameSpaceImport>]
+    - [<ImportedDefaultBinding>, ',', <NamedImports>]
+<ImportedDefaultBinding>:
+  rhs:
+    - [<ImportedBinding>]
+<NameSpaceImport>:
+  rhs:
+    - ['*', 'as', <ImportedBinding>]
+<NamedImports>:
+  rhs:
+    - ['{', '}']
+    - ['{', <ImportsList>, '}']
+    - ['{', <ImportsList>, ',', '}']
+<FromClause>:
+  rhs:
+    - [from, <ModuleSpecifier>]
+<ImportsList>:
+  rhs:
+    - [<ImportSpecifier>]
+    - [<ImportsList>, ',', <ImportSpecifier>]
+<ImportSpecifier>:
+  rhs:
+    - [<ImportedBinding>]
+    - [IdentifierName, as, <ImportedBinding>]
+<ModuleSpecifier>:
+  rhs:
+    - [StringLiteral]
+<ImportedBinding>:
+  rhs:
+    - [<BindingIdentifier>]
+########################
+# Export productions
+########################
+<ExportDeclaration>:
+  rhs:
+    - [export, '*', <FromClause>, ;]
+    - [export, <ExportClause>, <FromClause>, ;]
+    - [export, <ExportClause>, ;]
+    - [export, <VariableStatement>]
+    - [export, <Declaration>]
+    -
+      - export
+      - default
+      - <HoistableDeclaration>:
+          params:
+            passthrough: [+Default]
+    -
+      - export
+      - default
+      - <ClassDeclaration>:
+          params:
+            passthrough: [+Default]
+    -
+      - export
+      - default
+      - <*Lookahead*>:
+          params:
+            exclude:
+              - [function]
+              - [async, <!LineTerminator!>, function]
+              - [class]
+      - <AssignmentExpression>:
+          params:
+            passthrough: [+In]
+      - ;
+<ExportClause>:
+  rhs:
+    - ['{', '}']
+    - ['{', <ExportsList>, '}']
+    - ['{', <ExportsList>, ',', '}']
+<ExportsList>:
+  rhs:
+    - [<ExportSpecifier>]
+    - [<ExportsList>, ',', <ExportSpecifier>]
+<ExportSpecifier>:
+  rhs:
+    - [IdentifierName]
+    - [IdentifierName, as, IdentifierName]
+#################################
+# Block productions
+#################################
+<BlockStatement>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - <Block>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+<Block>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - '{'
+      - <StatementList>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+            optional: true
+      - '}'
+<StatementList>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - <StatementListItem>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - <StatementList>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+      - <StatementListItem>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+<StatementListItem>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - <Statement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - <Declaration>:
+          params:
+            passthrough: ['?Yield', '?Await']
+###########################################
+## Statement and Declaration Productions
+###########################################
+<Statement>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - <BlockStatement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - <VariableStatement>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    - [<EmptyStatement>]
+    -
+      - <ExpressionStatement>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <IfStatement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - <BreakableStatement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - <ContinueStatement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - <BreakStatement>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <ReturnStatement>:
+          params:
+            passthrough: ['?Yield', '?Await']
+            conditions: [+Return]
+    -
+      - <WithStatement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - <LabelledStatement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - <ThrowStatement>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <TryStatement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    - [<DebuggerStatement>]
+<Declaration>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <HoistableDeclaration>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <ClassDeclaration>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <LexicalDeclaration>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+<HoistableDeclaration>:
+  params: [Yield, Await, Default]
+  rhs:
+    -
+      - <FunctionDeclaration>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Default']
+    -
+      - <GeneratorDeclaration>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Default']
+    -
+      - <AsyncFunctionDeclaration>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Default']
+<BreakableStatement>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - <IterationStatement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - <SwitchStatement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+#####################################################
+# Let and Const Declarations
+#####################################################
+<LexicalDeclaration>:
+  params: [In, Yield, Await]
+  rhs:
+    -
+      - <LetOrConst>
+      - <BindingList>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - ;
+<LetOrConst>:
+  rhs: [[let], [const]]
+<BindingList>:
+  params: [In, Yield, Await]
+  rhs:
+    -
+      - <LexicalBinding>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <BindingList>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - <LexicalBinding>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+<LexicalBinding>:
+  params: [In, Yield, Await]
+  rhs:
+    -
+      - <BindingIdentifier>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <Initializer>:
+          params:
+            optional: true
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <BindingPattern>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <Initializer>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+##############################################
+# Variable Statement Productions
+##############################################
+<VariableStatement>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - var
+      - <VariableDeclarationList>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ;
+<VariableDeclarationList>:
+  params: [In, Yield, Await]
+  rhs:
+    -
+      - <VariableDeclaration>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <VariableDeclarationList>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - <VariableDeclaration>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+<VariableDeclaration>:
+  params: [In, Yield, Await]
+  rhs:
+    -
+      - <BindingIdentifier>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <Initializer>:
+          params:
+            optional: true
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <BindingPattern>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <Initializer>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+##############################################
+# Destructuring Binding Pattern Productions
+##############################################
+<BindingPattern>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <ObjectBindingPattern>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <ArrayBindingPattern>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<ObjectBindingPattern>:
+  params: [Yield, Await]
+  rhs:
+    - ['{', '}']
+    -
+      - '{'
+      - <BindingPropertyList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '}'
+    -
+      - '{'
+      - <BindingPropertyList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ','
+      - '}'
+<ArrayBindingPattern>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - '['
+      - <Elision>:
+          params:
+            optional: true
+      - <BindingRestElement>:
+          params:
+            optional: true
+            passthrough: ['?Yield', '?Await']
+      - ']'
+    -
+      - '['
+      - <BindingElementList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ']'
+    -
+      - '['
+      - <BindingElementList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <Elision>:
+          params:
+            optional: true
+      - <BindingRestElement>:
+          params:
+            optional: true
+            passthrough: ['?Yield', '?Await']
+      - ']'
+<BindingPropertyList>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <BindingProperty>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <BindingPropertyList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <BindingProperty>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<BindingElementList>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <BindingElisionElement>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <BindingElementList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ','
+      - <BindingElisionElement>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<BindingElisionElement>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <Elision>:
+          params:
+            optional: true
+      - <BindingElement>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<BindingProperty>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <SingleNameBinding>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <BindingPattern>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <Initializer>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+            optional: true
+<SingleNameBinding>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <BindingIdentifier>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <Initializer>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+            optional: true
+<BindingRestElement>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - '...'
+      - <BindingIdentifier>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - '...'
+      - <BindingPattern>:
+          params:
+            passthrough: ['?Yield', '?Await']
+#####################################
+# Empty Statement Production
+#####################################
+<EmptyStatement>:
+  rhs:
+    - [';']
+#####################################
+# Expression Statement Production
+#####################################
+<ExpressionStatement>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <*Lookahead*>:
+          params:
+            exclude:
+              - ['{']
+              - [function]
+              - [async, <!LineTerminator!>, function]
+              - [class]
+              - [let, '[']
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ';'
+###################################
+# If Statement Production
+###################################
+<IfStatement>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - if
+      - '('
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ')'
+      - <Statement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+      - else
+      - <Statement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - if
+      - '('
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ')'
+      - <Statement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+#####################################
+# Iteration Statement Productions
+#####################################
+<IterationStatement>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - do
+      - <Statement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+      - while
+      - '('
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ')'
+      - ';'
+    -
+      - while
+      - '('
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ')'
+      - <Statement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - for
+      - '('
+      - <*Lookahead*>:
+          params:
+            exclude:
+              - [let, '[']
+      - <Expression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+            optional: true
+      - ';'
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+            optional: true
+      - ';'
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+            optional: true
+      - ')'
+      - <Statement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - for
+      - '('
+      - var
+      - <VariableDeclarationList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ';'
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+            optional: true
+      - ';'
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+            optional: true
+      - ')'
+      - <Statement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - for
+      - '('
+      - <LexicalDeclaration>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+            optional: true
+      - ';'
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+            optional: true
+      - ')'
+      - <Statement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - for
+      - '('
+      - <*Lookahead*>:
+          params:
+            exclude:
+              - [let, '[']
+      - <LeftHandSideExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - in
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ')'
+      - <Statement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - for
+      - '('
+      - var
+      - <ForBinding>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - in
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ')'
+      - <Statement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - for
+      - '('
+      - <ForDeclaration>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - in
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ')'
+      - <Statement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - for
+      - '('
+      - <*Lookahead*>:
+          params:
+            exclude: [[let]]
+      - <LeftHandSideExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - of
+      - <AssignmentExpression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ')'
+      - <Statement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - for
+      - '('
+      - var
+      - <ForBinding>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - of
+      - <AssignmentExpression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ')'
+      - <Statement>:
+          params:
+            passthrought: ['?Yield', '?Await', '?Return']
+    -
+      - for
+      - '('
+      - <ForDeclaration>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - of
+      - <AssignmentExpression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ')'
+      - <Statement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+<ForDeclaration>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <LetOrConst>
+      - <ForBinding>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<ForBinding>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <BindingIdentifier>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <BindingPattern>:
+          params:
+            passthrough: ['?Yield', '?Await']
+#######################################
+# Continue Statement Production
+#######################################
+<ContinueStatement>:
+  params: [Yield, Await]
+  rhs:
+    - [continue, ';']
+    -
+      - continue
+      - <!LineTerminator!>
+      - <LabelIdentifier>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ;
+#######################################
+# Break Statement Production
+#######################################
+<BreakStatement>:
+  params: [Yield, Await]
+  rhs:
+    - [break, ;]
+    -
+      - break
+      - <!LineTerminator!>
+      - <LabelIdentifier>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ;
+#######################################
+# Return Statement Production
+#######################################
+<ReturnStatement>:
+  params: [Yield, Await]
+  rhs:
+    - [return, ;]
+    -
+      - return
+      - <!LineTerminator!>
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ;
+#######################################
+# With Statement Production
+#######################################
+<WithStatement>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - with
+      - '('
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ')'
+      - <Statement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+#######################################
+# Switch Statement Productions
+#######################################
+<SwitchStatement>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - switch
+      - '('
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ')'
+      - <CaseBlock>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+<CaseBlock>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - '{'
+      - <CaseClauses>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+            optional: true
+      - '}'
+    -
+      - '{'
+      - <CaseClauses>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+            optional: true
+      - <DefaultClause>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+      - <CaseClauses>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+            optional: true
+      - '}'
+<CaseClauses>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - <CaseClause>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - <CaseClauses>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+      - <CaseClause>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+<CaseClause>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - case
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ':'
+      - <StatementList>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+            optional: true
+<DefaultClause>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - default
+      - ':'
+      - <StatementList>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+            optional: true
+###############################################
+# Labelled Statement Productions
+###############################################
+<LabelledStatement>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - <LabelIdentifier>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ':'
+      - <LabelledItem>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+<LabelledItem>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - <Statement>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - <FunctionDeclaration>:
+          params:
+            passthrough: ['?Yield', '?Await']
+##############################################
+# Throw Statement Production
+##############################################
+<ThrowStatement>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - throw
+      - <!LineTerminator!>
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ';'
+#############################################
+# Tree Statement Production
+#############################################
+<TryStatement>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - try
+      - <Block>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+      - <Catch>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - try
+      - <Block>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+      - <Finally>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+    -
+      - try
+      - <Block>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+      - <Catch>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+      - <Finally>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+<Catch>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - catch
+      - '('
+      - <CatchParameter>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ')'
+      - <Block>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+<Finally>:
+  params: [Yield, Await, Return]
+  rhs:
+    -
+      - finally
+      - <Block>:
+          params:
+            passthrough: ['?Yield', '?Await', '?Return']
+<CatchParameter>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <BindingIdentifier>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <BindingPattern>:
+          params:
+            passthrough: ['?Yield', '?Await']
+##########################################
+# Debugger Statement Production
+##########################################
+<DebuggerStatement>:
+  rhs:
+    - [debugger, ';']
+##########################################
+# Function Definition Productions
+##########################################
+<FunctionDeclaration>:
+  params: [Yield, Await, Default]
+  rhs:
+    -
+      - function
+      - <BindingIdentifier>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '('
+      - <FormalParameters>
+      - ')'
+      - '{'
+      - <FunctionBody>
+      - '}'
+    -
+      - <*Conditional*>:
+          params:
+            conditions: [+Default]
+          parts:
+            - function
+            - '('
+            - <FormalParameters>
+            - ')'
+            - '{'
+            - <FunctionBody>
+            - '}'
+<FunctionExpression>:
+  rhs:
+    -
+      - function
+      - <BindingIdentifier>:
+          optional: true
+      - '('
+      - <FormalParameters>
+      - ')'
+      - '{'
+      - <FunctionBody>
+      - '}'
+<UniqueFormalParameters>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <FormalParameters>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<FormalParameters>:
+  params: [Yield, Await]
+  rhs:
+    - ['[empty]']
+    -
+      - <FunctionRestParameter>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <FormalParameterList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <FormalParameterList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ','
+    -
+      - <FormalParameterList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ','
+      - <FormalParameter>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ','
+      - <FunctionRestParameter>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<FormalParameterList>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <FormalParameter>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <FormalParameterList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <FormalParameter>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<FunctionRestParameter>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <BindingRestElement>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<FormalParameter>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <BindingElement>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<FunctionBody>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <FunctionStatementList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<FunctionStatementList>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <StatementList>:
+          params:
+            passthrough: ['?Yield', '?Await', +Return]
+            optional: true
+#############################################
+# Arrow Function Productions
+#############################################
+<ArrowFunction>:
+  params: [In, Yield, Await]
+  rhs:
+    -
+      - <ArrowParameters>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <!LineTerminator!>
+      - '=>'
+      - <ConciseBody>:
+          params:
+            passthrough: ['?In']
+<ArrowParameters>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <BindingIdentifier>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <CoverParenthesizedExpressionAndArrowParameterList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<ConciseBody>:
+  params: [In]
+  rhs:
+    -
+      - <*Lookahead*>:
+          params:
+            exclude: [['{']]
+      - <AssignmentExpression>:
+          params:
+            passthrough: ['?In']
+    - ['{', <FunctionBody>, '}']
+######################################
+# Method Definition Productions
+######################################
+<MethodDefinition>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <PropertyName>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '('
+      - <UniqueFormalParameters>
+      - ')'
+      - '{'
+      - <FunctionBody>
+      - '}'
+    -
+      - <GeneratorMethod>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <AsyncMethod>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - get
+      - <PropertyName>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '('
+      - ')'
+      - '{'
+      - <FunctionBody>
+      - '}'
+    -
+      - set
+      - <PropertyName>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '('
+      - <PropertySetParameterList>
+      - ')'
+      - '{'
+      - <FunctionBody>
+      - '}'
+<PropertySetParameterList>:
+  rhs:
+    -
+      - <FormalParameter>
+#############################################
+# Generator Function Definition Production
+#############################################
+<GeneratorMethod>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - '*'
+      - <PropertyName>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '('
+      - <UniqueFormalParameters>:
+          params:
+            passthrough: [+Yield]
+      - ')'
+      - '{'
+      - <GeneratorBody>
+      - '}'
+<GeneratorDeclaration>:
+  params: [Yield, Await, Default]
+  rhs:
+    -
+      - function
+      - '*'
+      - <BindingIdentifier>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '('
+      - <FormalParameters>:
+          params:
+            passthrough: [+Yield]
+      - ')'
+      - '{'
+      - <GeneratorBody>
+      - '}'
+    -
+      - <*Conditional*>:
+          params:
+            conditions: [+Default]
+          parts:
+            - function
+            - '*'
+            - '('
+            - <FormalParameters>:
+                params:
+                  passthrough: [+Yield]
+            - ')'
+            - '{'
+            - <GeneratorBody>
+            - '}'
+<GeneratorExpression>:
+  rhs:
+    -
+      - function
+      - '*'
+      - <BindingIdentifier>:
+          params:
+            passthrough: [+Yield]
+            optional: true
+      - '('
+      - <FormalParameters>:
+          params:
+            passthrough: [+Yield]
+      - ')'
+      - '{'
+      - <GeneratorBody>
+      - '}'
+<GeneratorBody>:
+  rhs:
+    -
+      - <FunctionBody>:
+          params:
+            passthrough: [+Yield]
+<YieldExpression>:
+  params: [In, Await]
+  rhs:
+    - [yield]
+    -
+      - yield
+      - <!LineTerminator!>
+      - <AssignmentExpression>:
+          params:
+            passthrough: ['?In', +Yield, '?Await']
+    -
+      - yield
+      - <!LineTerminator!>
+      - '*'
+      - <AssignmentExpression>:
+          params:
+            passthrough: ['?In', +Yield, '?Await']
+####################################
+# Class Definition Productions
+####################################
+<ClassDeclaration>:
+  params: [Yield, Await, Default]
+  rhs:
+    -
+      - class
+      - <BindingIdentifier>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <ClassTail>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <*Conditional*>:
+          params:
+            conditions: [+Default]
+          parts:
+            - class
+            - <ClassTail>:
+                params: ['?Yield', '?Await']
+<ClassExpression>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - class
+      - <BindingIdentifier>:
+          params:
+            passthrough: ['?Yield', '?Await']
+            optional: true
+      - <ClassTail>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<ClassTail>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <ClassHeritage>:
+          params:
+            passthrough: ['?Yield', '?Await']
+            optional: true
+      - '{'
+      - <ClassBody>:
+          params:
+            passthrough: ['?Yield', '?Await']
+            optional: true
+      - '}'
+<ClassHeritage>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - extends
+      - <LeftHandSideExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<ClassBody>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <ClassElementList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<ClassElementList>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <ClassElement>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <ClassElementList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <ClassElement>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<ClassElement>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <MethodDefinition>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - static
+      - <MethodDefinition>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    - [';']
+#############################################
+# Async Function Definition Productions
+#############################################
+<AsyncFunctionDeclaration>:
+  params: [Yield, Await, Default]
+  rhs:
+    -
+      - async
+      - <!LineTerminator!>
+      - function
+      - <BindingIdentifier>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '('
+      - <FormalParameters>:
+          params:
+            passthrough: ['?Await']
+      - ')'
+      - '{'
+      - <AsyncFunctionBody>
+      - '}'
+    -
+      - <*Conditional*>:
+          params:
+            conditions: [+Default]
+          parts:
+            - async
+            - <!LineTerminator!>
+            - function
+            - '('
+            - <FormalParameters>:
+                params:
+                  passthrough: ['?Await']
+            - '{'
+            - <AsyncFunctionBody>
+            - '}'
+<AsyncMethod>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - async
+      - <!LineTerminator!>
+      - <PropertyName>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '('
+      - <UniqueFormalParameters>:
+          params:
+            passthrough: [+Await]
+      - ')'
+      - '{'
+      - <AsyncFunctionBody>
+      - '}'
+<AsyncFunctionBody>:
+  rhs:
+    -
+      - <FunctionBody>:
+          params:
+            passthrough: [+Await]
+<AwaitExpression>:
+  params: [Yield]
+  rhs:
+    -
+      - await
+      - <UnaryExpression>:
+          params:
+            passthrough: ['?Yield', +Await]
+###############################################
+# Async Arrow Function Definition Productions
+###############################################
+<AsyncArrowFunction>:
+  params: [In, Yield, Await]
+  rhs:
+    -
+      - async
+      - <!LineTerminator!>
+      - <AsyncArrowBindingIdentifier>:
+          params:
+            passthrough: ['?Yield']
+      - <!LineTerminator!>
+      - '=>'
+      - <AsyncConciseBody>:
+          params:
+            passthrough: ['?In']
+    -
+      - <CoverCallExpressionAndAsyncArrowHead>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <!LineTerminator!>
+      - '=>'
+      - <AsyncConciseBody>:
+          params:
+            passthrough: ['?In']
+<AsyncConciseBody>:
+  params: [In]
+  rhs:
+    -
+      - <*Lookahead*>:
+          params:
+            exclude:
+              - ['{']
+      - <AssignmentExpression>:
+          params:
+            passthrough: ['?In', +Await]
+    -
+      - '{'
+      - <AsyncFunctionBody>
+      - '}'
+<AsyncArrowBindingIdentifier>:
+  params: [Yield]
+  rhs:
+    -
+      - <BindingIdentifier>:
+          params:
+            passthrough: ['?Yield', +Await]
+<CoverCallExpressionAndAsyncArrowHead>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <MemberExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <Arguments>:
+          params:
+            passthrough: ['?Yield', '?Await']
+############################
+# Identifier productions
+############################
+<IdentifierReference>:
+  params: [Yield, Await]
+  rhs:
+    - [<Identifier>]
+    - [{yield: { params: { conditions: [~Yield]}}}]
+    - [{await: { params: { conditions: [~Await]}}}]
+<BindingIdentifier>:
+  params: [Yield, Await]
+  rhs:
+    - [<Identifier>]
+    - [{yield: { params: { conditions: [~Yield]}}}]
+    - [{await: { params: { conditions: [~Await]}}}]
+<LabelIdentifier>:
+  params: [Yield, Await]
+  rhs:
+    - [<Identifier>]
+    - [{yield: { params: { conditions: [~Yield]}}}]
+    - [{await: { params: { conditions: [~Await]}}}]
+<Identifier>:
+  rhs:
+    - [IdentifierName] # IdentifierName excludes ReservedWords by default.
+#####################################
+# Primary Expression Productions
+#####################################
+<PrimaryExpression>:
+  params: [Yield, Await]
+  rhs:
+    - [this]
+    -
+      - <IdentifierReference>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    - [<Literal>]
+    -
+      - <ArrayLiteral>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <ObjectLiteral>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    - [<FunctionExpression>]
+    -
+      - <ClassExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    - [<GeneratorExpression>]
+    - [<AsyncFunctionExpression>]
+    - [RegularExpressionLiteral]
+    -
+      - <TemplateLiteral>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <CoverParenthesizedExpressionAndArrowParameterList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<CoverParenthesizedExpressionAndArrowParameterList>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - '('
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ')'
+    -
+      - '('
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ','
+      - ')'
+    - ['(', ')']
+    -
+      - '('
+      - '...'
+      - <BindingIdentifier>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ')'
+    -
+      - '('
+      - '...'
+      - <BindingPattern>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ')'
+    -
+      - '('
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ','
+      - '...'
+      - <BindingIdentifier>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ')'
+    -
+      - '('
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ','
+      - '...'
+      - <BindingPattern>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ')'
+##########################################
+# Literal Productions
+##########################################
+<Literal>:
+  rhs:
+    - [NullLiteral]
+    - [BooleanLiteral]
+    - [NumericLiteral]
+    - [StringLiteral]
+##########################################
+# Array Initializer Productions
+##########################################
+<ArrayLiteral>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - '['
+      - <Elision>:
+          params:
+            optional: true
+      - ']'
+    -
+      - '['
+      - <ElementList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ']'
+    -
+      - '['
+      - <ElementList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ','
+      - <Elision>:
+          params:
+            optional: true
+      - ']'
+<ElementList>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <Elision>:
+          params:
+            optional: true
+      - <AssignmentExpression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+    -
+      - <Elision>:
+          params:
+            optional: true
+      - <SpreadElement>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <ElementList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ','
+      - <Elision>:
+          params:
+            optional: true
+      - <AssignmentExpression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+    -
+      - <ElementList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ','
+      - <Elision>:
+          params:
+            optional: true
+      - <SpreadElement>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<Elision>:
+  rhs:
+    - [',']
+    - [<Elision>, ',']
+<SpreadElement>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - '...'
+      - <AssignmentExpression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+#############################################
+# Object Initializer Productions
+#############################################
+<ObjectLiteral>:
+  params: [Yield, Await]
+  rhs:
+    - ['{', '}']
+    -
+      - '{'
+      - <PropertyDefinitionList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '}'
+    -
+      - '{'
+      - <PropertyDefinitionList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ','
+      - '}'
+<PropertyDefinitionList>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <PropertyDefinition>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <PropertyDefinitionList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ','
+      - <PropertyDefinition>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<PropertyDefinition>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <IdentifierReference>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <CoverInitializedName>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <PropertyName>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ':'
+      - <AssignmentExpression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+    -
+      - <MethodDefinition>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<PropertyName>:
+  params: [Yield, Await]
+  rhs:
+    - [<LiteralPropertyName>]
+    -
+      - <ComputedPropertyName>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<LiteralPropertyName>:
+  rhs:
+    - [IdentifierName]
+    - [StringLiteral]
+    - [NumericLiteral]
+<ComputedPropertyName>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - '['
+      - <AssignmentExpression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ']'
+<CoverInitializedName>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <IdentifierReference>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <Initializer>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+<Initializer>:
+  params: [In, Yield, Await]
+  rhs:
+    -
+      - '='
+      - <AssignmentExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+###########################################
+# Template Literal Productions
+###########################################
+<TemplateLiteral>:
+  params: [Yield, Await]
+  rhs:
+    - [NoSubstitionTemplate]
+    -
+      - TemplateHead
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - <TemplateSpans>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<TemplateSpans>:
+  params: [Yield, Await]
+  rhs:
+    - [TemplateTail]
+    -
+      - <TemplateMiddleList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - TemplateTail
+<TemplateMiddleList>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - TemplateMiddle
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+    -
+      - <TemplateMiddleList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - TemplateMiddle
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+##########################################
+# Left Hand Side Expression Productions
+##########################################
+<MemberExpression>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <PrimaryExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <MemberExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '['
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ']'
+    -
+      - <MemberExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '.'
+      - IdentifierName
+    -
+      - <MemberExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <TemplateLiteral>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <SuperProperty>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    - [<MetaProperty>]
+    -
+      - new
+      - <MemberExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <Arguments>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<SuperProperty>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - super
+      - '['
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ']'
+    -
+      - super
+      - '.'
+      - IdentifierName
+<MetaProperty>:
+  rhs:
+    - [<NewTarget>]
+<NewTarget>:
+  rhs:
+    - [new, '.', target]
+<NewExpression>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <MemberExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - new
+      - <NewExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<CallExpression>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <CoverCallExpressionAndAsyncArrowHead>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <SuperCall>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <CallExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <Arguments>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <CallExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      -  '['
+      - <Expression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+      - ']'
+    -
+      - <CallExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '.'
+      - IdentifierName
+    -
+      - <CallExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <TemplateLiteral>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<SuperCall>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - super
+      - <Arguments>:
+          params:
+            passthrough: ['?Yield', '?Await']
+<Arguments>:
+  params: [Yield, Await]
+  rhs:
+    - ['(', ')']
+    -
+      - '('
+      - <ArgumentList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ')'
+    -
+      - '('
+      - <ArgumentList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ','
+      - ')'
+<ArgumentList>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <AssignmentExpression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+    -
+      - '...'
+      - <AssignmentExpression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+    -
+      - <ArgumentList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ','
+      - <AssignmentExpression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+    -
+      - <ArgumentList>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - ','
+      - '...'
+      - <AssignmentExpression>:
+          params:
+            passthrough: [+In, '?Yield', '?Await']
+<LeftHandSideExpression>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <NewExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <CallExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+#####################################
+# Update Expression Productions
+#####################################
+<UpdateExpression>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <LeftHandSideExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <LeftHandSideExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <!LineTerminator!>
+      - '++'
+    -
+      - <LeftHandSideExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <!LineTerminator!>
+      - '--'
+    -
+      - '++'
+      - <UnaryExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - '--'
+      - <UnaryExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+####################################
+# Unary Expression Production
+####################################
+<UnaryExpression>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <UpdateExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - delete
+      - <UnaryExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - void
+      - <UnaryExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - typeof
+      - <UnaryExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - '+'
+      - <UnaryExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - '-'
+      - <UnaryExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - '~'
+      - <UnaryExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - '!'
+      - <UnaryExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <*Conditional*>:
+          params:
+            conditions: [+Await]
+          parts:
+            - <AwaitExpression>:
+                params:
+                  passthrough: ['?Yield']
+##########################################
+# Exponentiation Expression Production
+##########################################
+<ExponentiationExpression>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <UnaryExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <UpdateExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '**'
+      - <ExponentiationExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+##########################################
+# Multiplicative Expression Productions
+##########################################
+<MultiplicativeExpression>:
+   params: [Yield, Await]
+   rhs:
+     -
+       - <ExponentiationExpression>:
+           params:
+             passthrough: ['?Yield', '?Await']
+     -
+       - <MultiplicativeExpression>:
+           params:
+             passthrough: ['?Yield', '?Await']
+       - <MultiplicativeOperator>
+       - <ExponentiationExpression>:
+           params:
+             passthrough: ['?Yield', '?Await']
+<MultiplicativeOperator>:
+  rhs:
+    - ['*']
+    - ['/']
+    - ['%']
+############################################
+# Additive Expression Production
+############################################
+<AdditiveExpression>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <MultiplicativeExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <AdditiveExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '+'
+      - <MultiplicativeExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <AdditiveExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '-'
+      - <MultiplicativeExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+##########################################
+# Bitwise Shift Operator Production
+##########################################
+<ShiftExpression>:
+  params: [Yield, Await]
+  rhs:
+    -
+      - <AdditiveExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <ShiftExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '<<'
+      - <AdditiveExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <ShiftExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '>>'
+      - <AdditiveExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <ShiftExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '>>>'
+      - <AdditiveExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+###########################################
+# Relational Operator Production
+###########################################
+<RelationalExpression>:
+  params: [In, Yield, Await]
+  rhs:
+    -
+      - <ShiftExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <RelationalExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - '<'
+      - <ShiftExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <RelationalExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - '>'
+      - <ShiftExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <RelationalExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - '<='
+      - <ShiftExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <RelationalExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - '>='
+      - <ShiftExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <RelationalExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - 'instanceof'
+      - <ShiftExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+    -
+      - <*Conditional*>:
+          params:
+            conditions: [+In]
+          parts:
+            - <RelationalExpression>:
+                params:
+                  passthrough: [+In, '?Yield', '?Await']
+            - in
+            - <ShiftExpression>:
+                params:
+                  passthrough: ['?Yield', '?Await']
+##############################################
+# Equality Operator Production
+##############################################
+<EqualityExpression>:
+  params: [In, Yield, Await]
+  rhs:
+    -
+      - <RelationalExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <EqualityExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - '=='
+      - <RelationalExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <EqualityExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - '!='
+      - <RelationalExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <EqualityExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - '==='
+      - <RelationalExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <EqualityExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - '!=='
+      - <RelationalExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+###########################################
+# Binary Bitwise Operator Productions
+###########################################
+<BitwiseANDExpression>:
+  params: [In, Yield, Await]
+  rhs:
+    -
+      - <EqualityExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <BitwiseANDExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - '&'
+      - <EqualityExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+<BitwiseXORExpression>:
+  params: [In, Yield, Await]
+  rhs:
+    -
+      - <BitwiseANDExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <BitwiseXORExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - '^'
+      - <BitwiseANDExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+<BitwiseORExpression>:
+  params: [In, Yield, Await]
+  rhs:
+    -
+      - <BitwiseXORExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <BitwiseORExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - '|'
+      - <BitwiseXORExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+##########################################
+# Binary Logical Operator Productions
+##########################################
+<LogicalANDExpression>:
+  params: [In, Yield, Await]
+  rhs:
+    -
+      - <BitwiseORExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <LogicalANDExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - '&&'
+      - <BitwiseORExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+<LogicalORExpression>:
+  params: [In, Yield, Await]
+  rhs:
+    -
+      - <LogicalANDExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <LogicalORExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - '||'
+      - <LogicalANDExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+###########################################
+# Conditional Operator Production
+###########################################
+<ConditionalExpression>:
+  params: [In, Yield, Await]
+  rhs:
+    -
+      - <LogicalORExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <LogicalORExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - '?'
+      - <AssignmentExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - ':'
+      - <AssignmentExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+###########################################
+# Assignment Operator Productions
+###########################################
+<AssignmentExpression>:
+  params: [In, Yield, Await]
+  rhs:
+    -
+      - <ConditionalExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <*Conditional*>:
+          params:
+            conditions: [+Yield]
+          parts:
+            - <YieldExpression>:
+                params:
+                  passthrough: ['?In', '?Await']
+    -
+      - <ArrowFunction>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <AsyncArrowFunction>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <LeftHandSideExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - '='
+      - <AssignmentExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <LeftHandSideExpression>:
+          params:
+            passthrough: ['?Yield', '?Await']
+      - <AssignmentOperator>
+      - <AssignmentExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+###########################################
+# Comma Operator Production
+###########################################
+<Expression>:
+  params: [In, Yield, Await]
+  rhs:
+    -
+      - <AssignmentExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+    -
+      - <Expression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']
+      - ','
+      - <AssignmentExpression>:
+          params:
+            passthrough: ['?In', '?Yield', '?Await']

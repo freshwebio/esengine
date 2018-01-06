@@ -5,6 +5,8 @@ package parser
 // an input slice of code points.
 type Lexer interface {
 	Tokenise(input []rune, goal LexicalGoalSymbol) ([]*Token, error)
+	TokeniseUpToType(input []rune, tokenType string, goal LexicalGoalSymbol) ([]*Token, error, int)
+	TokeniseUpToToken(input []rune, tokenType string, tokenValue string, goal LexicalGoalSymbol) ([]*Token, error, int)
 	Reset()
 }
 
@@ -52,6 +54,54 @@ func (l *lexerImpl) Tokenise(input []rune, goal LexicalGoalSymbol) ([]*Token, er
 		}
 	}
 	return l.currentTokens, err
+}
+
+func (l *lexerImpl) TokeniseUpToType(input []rune, tType string, goal LexicalGoalSymbol) ([]*Token, error, int) {
+	l.currentInput = input
+	l.currentTokens = []*Token{}
+	var err error
+	i := 0
+	reachedType := false
+	for err == nil && i < len(input) && !reachedType {
+		var tkn *Token
+		var nextPos int
+		tkn, nextPos, err = NextToken(i, input, l.charMap, l.pMap, l.kwMap, l.frwMap, goal)
+		if err == nil {
+			if tkn != nil {
+				l.currentTokens = append(l.currentTokens, tkn)
+				if tkn.Name == tType {
+					reachedType = true
+				}
+			} else {
+				i = nextPos
+			}
+		}
+	}
+	return l.currentTokens, err, i
+}
+
+func (l *lexerImpl) TokeniseUpToToken(input []rune, tType string, value string, goal LexicalGoalSymbol) ([]*Token, error, int) {
+	l.currentInput = input
+	l.currentTokens = []*Token{}
+	var err error
+	i := 0
+	reachedTypeandValue := false
+	for err == nil && i < len(input) && !reachedTypeandValue {
+		var tkn *Token
+		var nextPos int
+		tkn, nextPos, err = NextToken(i, input, l.charMap, l.pMap, l.kwMap, l.frwMap, goal)
+		if err == nil {
+			if tkn != nil {
+				l.currentTokens = append(l.currentTokens, tkn)
+				if tkn.Name == tType && tkn.Value == value {
+					reachedTypeandValue = true
+				}
+			} else {
+				i = nextPos
+			}
+		}
+	}
+	return l.currentTokens, err, i
 }
 
 // Reset deals with resetting the lexer and clearing the token
