@@ -1,0 +1,37 @@
+- <A>:
+    rhs:
+      - [<B>, '{', defq]
+      - [<B>, '{', basqeq]
+      - [<D>, 'afrqw']
+      - [<D>, '*']
+  <B>:
+    rhs:
+      - [<C>]
+      - [<C>, '}', wqoe]
+      - [<C>, '}', oew]
+- <A>:
+    rhs:
+      - [<B>, <AA0>]
+      - [<D>, <AA1>]
+  <AA0>:
+    rhs:
+      - ['{', <AA0A0>]
+  <AA1>:
+    rhs:
+      - ['afrqw']
+      - ['*']
+  <AA0A0>:
+    rhs:
+      - [defq]
+      - [basqeq]
+  <B>:
+    rhs:
+      - [<C>, <BA0>]
+  <BA0>:
+    rhs:
+      - ['}', <BA0A0>]
+      - ['[empty]']
+  <BA0A0>:
+    rhs:
+      - [wqoe]
+      - [oew]

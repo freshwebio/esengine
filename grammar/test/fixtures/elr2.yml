@@ -1,0 +1,40 @@
+- <S>:
+    rhs:
+      - [<A>, a, <B>]
+      - [<B>]
+      - [b]
+  <B>:
+    rhs:
+      - ['[empty]']
+  <A>:
+    rhs:
+      - [<A>, '[empty]', c]
+      - [<A>, d]
+      - ['[empty]', e]
+      - [<S>, d]
+      - [<B>]
+      - ['[empty]']
+  <C>:
+    rhs:
+      - [efg]
+      - [<B>]
+- <S>:
+    rhs:
+      - [<A>, a]
+      - [b]
+      - ['[empty]']
+  <A>:
+    rhs:
+      - [e, <A'>]
+      - [b, d, <A'>]
+      - [<A'>]
+  <A'>:
+    rhs:
+      - [c, <A'>]
+      - [d, <A'>]
+      - [a, d, <A'>]
+      - ['[empty]']
+  <C>:
+    rhs:
+      - [efg]
+      - ['[empty]']

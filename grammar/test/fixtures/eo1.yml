@@ -1,0 +1,58 @@
+- <A>:
+    rhs:
+      -
+        - <B>:
+            params:
+              optional: true
+        - c
+        - f
+        - '{'
+        - <B>
+        - '}'
+      -
+        - <C>
+        - def
+  <B>:
+    rhs:
+      -
+        - race
+  <C>:
+    rhs:
+      -
+        - <D>:
+            params:
+              optional: true
+      -
+        - efg
+      -
+        - <E>:
+            params:
+              optional: true
+      - [rfc]
+  <D>:
+    rhs:
+      - [one]
+  <E>:
+    rhs:
+      - [two]
+- <A>:
+    rhs:
+      - [<B>, c, f, '{', <B>, '}']
+      - [c, f, '{', <B>, '}']
+      - [<C>, def]
+  <B>:
+    rhs:
+      - [race]
+  <C>:
+    rhs:
+      - [<D>]
+      - [efg]
+      - [<E>]
+      - [rfc]
+      - ['[empty]']
+  <D>:
+    rhs:
+      - [one]
+  <E>:
+    rhs:
+      - [two]

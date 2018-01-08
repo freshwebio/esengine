@@ -33,7 +33,7 @@ func (p *Production) extractRHSRuleSymbols(rhsIface interface{}) error {
 					// a non-terminal, terminal or an exclusion.
 					// This is down to the fact that only these types of
 					// symbols/functions that do not require parameters.
-					matched, err := regexp.MatchString("^<\\w+>$", name)
+					matched, err := regexp.MatchString("^<(\\w|')+>$", name)
 					if err != nil {
 						return err
 					}
@@ -82,7 +82,7 @@ func (p *Production) extractRHSRuleSymbols(rhsIface interface{}) error {
 // Deals with extracting a rule as a map
 // in order to extract parameters for the rule.
 func (p *Production) extractMapRule(name string, i int, v yaml.MapSlice) error {
-	matched, err := regexp.MatchString("^<\\w+>$", name)
+	matched, err := regexp.MatchString("^<(\\w|')+>$", name)
 	if err != nil {
 		return err
 	}

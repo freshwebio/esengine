@@ -23,7 +23,7 @@ func (g *Grammar) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 	for _, p := range *target {
-		matched, err := regexp.MatchString("^<\\w+>$", p.Key.(string))
+		matched, err := regexp.MatchString("^<(\\w|')+>$", p.Key.(string))
 		if err != nil {
 			return err
 		}

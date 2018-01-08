@@ -35,6 +35,7 @@ func buildGrammarYaml(grammarFile string, outputFile string, pkg string) {
 			" representation of the grammar\nerror: %v\n", err)
 		log.Fatal(errFmt)
 	}
+	ExpandOptionals(grammar)
 	LLkify(grammar)
 	printGrammar(*grammar)
 	/*output += generateGrammarOutput(grammar)
@@ -85,6 +86,8 @@ func generateGrammarOutput(grammar *Grammar) string {
 	return output
 }
 
+// Simple helper method to determine whether the provided
+// string is in the given list of strings.
 func contains(haystack []string, needle string) bool {
 	found := false
 	i := 0
@@ -98,6 +101,7 @@ func contains(haystack []string, needle string) bool {
 	return found
 }
 
+// Determines whether a symbol is contained in the given set of symbols.
 func containsRuleSymbol(haystack []RHSRuleSymbol, needle RHSRuleSymbol) bool {
 	found := false
 	i := 0
@@ -117,6 +121,8 @@ func containsRuleSymbol(haystack []RHSRuleSymbol, needle RHSRuleSymbol) bool {
 	return found
 }
 
+// Determines whether a given set of symbols is contained
+// within a set of right-hand side rules of a production.
 func containsRule(haystack [][]RHSRuleSymbol, needle []RHSRuleSymbol) bool {
 	match := false
 	i := 0
@@ -173,6 +179,8 @@ func containsRule(haystack [][]RHSRuleSymbol, needle []RHSRuleSymbol) bool {
 	return match
 }
 
+// Creates a new string with the suffix of a combination of each parameter
+// provided and appends each one to the combined slice of strings provided as an argument.
 func combineParams(params []string, data [3]string, combined *[]string, start int, end int, index int, max int) {
 	if index == max {
 		combination := ""
@@ -213,7 +221,7 @@ func EliminateLeftRecursion(grammar *Grammar) {
 	prevProductions := []*Production{}
 	for _, prod := range grammar.Productions {
 		// Removes previous productions from our current production.
-		prod = removePrevProductions(prod, prevProductions)
+		prod = removeOtherProductions(prod, prevProductions)
 		alphas := [][]RHSRuleSymbol{}
 		betas := [][]RHSRuleSymbol{}
 		for _, rule := range prod.RHS {
@@ -221,7 +229,21 @@ func EliminateLeftRecursion(grammar *Grammar) {
 				// If first symbol is a left recursion
 				// then extract the alpha part of the rule.
 				if rule[0].Name() == prod.Name {
-					alphas = append(alphas, rule[1:])
+					// If alpha has more than one symbol
+					// and epsilon symbols exist in alpha,
+					// then we need to remove them as AεBεcd = ABcd and so on.
+					alpha := rule[1:]
+					newAlpha := []RHSRuleSymbol{}
+					if len(alpha) > 1 {
+						for _, s := range alpha {
+							if s.Name() != "[empty]" {
+								newAlpha = append(newAlpha, s)
+							}
+						}
+					} else {
+						newAlpha = alpha
+					}
+					alphas = append(alphas, newAlpha)
 				} else {
 					// This is a non left recursive symbol
 					// so make it a beta.
@@ -245,6 +267,13 @@ func EliminateLeftRecursion(grammar *Grammar) {
 				},
 			}
 			for _, beta := range betas {
+				// Remove epsilon from the beginning of beta as is equivalent
+				// to an empty string as εA' = A' and εBA' = BA'.
+				if len(beta) > 1 && beta[0].Name() == "[empty]" {
+					beta = beta[1:]
+				} else if len(beta) == 1 && beta[0].Name() == "[empty]" {
+					beta = []RHSRuleSymbol{}
+				}
 				betaAPrime := append(beta, aPrimeRule)
 				newProdA.RHS = append(newProdA.RHS, betaAPrime)
 			}
@@ -257,10 +286,25 @@ func EliminateLeftRecursion(grammar *Grammar) {
 			}})
 			newProductions = append(newProductions, newProdA, newProdAPrime)
 		} else {
-			newProductions = append(newProductions, prod)
+			// Ignore productions of the form A -> ε in the new set of productions we are forming.
+			if !(len(prod.RHS) == 1 && len(prod.RHS[0]) == 1 && prod.RHS[0][0].Name() == "[empty]") {
+				newProductions = append(newProductions, prod)
+			} else {
+				// For each of the previous productions, ensure we remove any instances of
+				// our A -> ε production.
+				for i, prev := range prevProductions {
+					newPrev := removeAnyOtherProduction(prev, []*Production{prod})
+					prevProductions[i] = newPrev
+					// Now replace the production in our final set of productions.
+					for j, finalProd := range newProductions {
+						if finalProd.Name == newPrev.Name {
+							newProductions[j] = newPrev
+						}
+					}
+				}
+			}
 		}
 		prevProductions = append(prevProductions, prod)
-
 	}
 	grammar.Productions = newProductions
 }
@@ -268,49 +312,53 @@ func EliminateLeftRecursion(grammar *Grammar) {
 // Deals with removing previous productions from the current production
 // for the sake of derivative left recursion removal by applying them and combining
 // the right-hand side of a previous production with the provided production's
-// right-hand side.
-func removePrevProductions(prod *Production, prevProds []*Production) *Production {
+// right-hand side and removal of A -> ε production instances.
+// This only removes/applies other production instances in our given production which begin
+// with the other production symbol.
+func removeOtherProductions(prod *Production, otherProds []*Production) *Production {
 	newProd := prod
-	if len(prevProds) > 0 {
+	if len(otherProds) > 0 {
 		newProd = &Production{
 			Name:   prod.Name,
 			Params: prod.Params,
 		}
 		for _, rule := range prod.RHS {
+			ruleIsEpsilon := false
 			// List of rules which are a result of applying
-			// previous productions.
-			prevAppliedRules := [][]RHSRuleSymbol{}
-			for _, prev := range prevProds {
-				if len(rule) > 0 && rule[0].Name() == prev.Name {
+			// other productions.
+			otherAppliedRules := [][]RHSRuleSymbol{}
+			for _, other := range otherProds {
+				if len(rule) > 0 && rule[0].Name() == other.Name {
 					delta := rule[1:]
-					// Remove productions of the form A -> ε before attempting to iterate over the set of rules.
-					if len(prev.RHS) == 1 && len(prev.RHS[0]) == 1 && prev.RHS[0][0].Name() == "[empty]" {
+					// Replace productions of the form A -> ε before attempting to iterate over the set of rules.
+					if len(other.RHS) == 1 && len(other.RHS[0]) == 1 && other.RHS[0][0].Name() == "[empty]" {
+						// If the rule is prefixed by our specified non-terminal then we will simply remove it
+						// as epsilon followed by any other symbol would be the equivalent to
+						// an empty string. In this case removal means omitting it from the new set
+						// of previously applied rules.
 						if len(rule) == 1 {
 							// If rule is epsilon (Contains a single [empty] rule symbol)
 							// then we will replace our non-terminal with epsilon.
+							ruleIsEpsilon = true
 							epsilon := []RHSRuleSymbol{&TerminalRHSRuleSymbol{
 								name: "[empty]",
 							}}
-							if !ruleExistsInAny(epsilon, prevAppliedRules, prod.RHS) {
-								prevAppliedRules = append(prevAppliedRules, epsilon)
+							if !ruleExistsInAny(epsilon, otherAppliedRules, prod.RHS) {
+								otherAppliedRules = append(otherAppliedRules, epsilon)
 							}
-						} else {
-							// If the rule is prefixed by our specified non-terminal then we will simply remove it
-							// as epsilon followed by any other symbol would be the equivalent to
-							// an empty string.
 						}
 					} else {
-						// Apply the previous production and we replace
+						// Apply the other production and we replace
 						// it in the current production with it's right hand side.
-						for _, prevRule := range prev.RHS {
+						for _, otherRule := range other.RHS {
 							// due to γ ≠ ε we will disregard any right-hand side rules
 							// which are empty or only contain the [empty] terminal.
-							if len(prevRule) > 1 || (len(prevRule) == 1 && prevRule[0].Name() != "[empty]") {
+							if len(otherRule) > 1 || (len(otherRule) == 1 && otherRule[0].Name() != "[empty]") {
 								// Append delta to the end of our new production.
-								prevRule = append(prevRule, delta...)
+								otherRule = append(otherRule, delta...)
 								// Also, we'll avoid duplicates by checking at this point.
-								if !ruleExistsInAny(prevRule, prevAppliedRules, prod.RHS) {
-									prevAppliedRules = append(prevAppliedRules, prevRule)
+								if !ruleExistsInAny(otherRule, otherAppliedRules, prod.RHS) {
+									otherAppliedRules = append(otherAppliedRules, otherRule)
 								}
 							}
 						}
@@ -320,11 +368,69 @@ func removePrevProductions(prod *Production, prevProds []*Production) *Productio
 			// No previously applied rules means there are no references to previous
 			// productions in the given rule and we can just add the rule to our new
 			// production as is.
-			if len(prevAppliedRules) == 0 {
+			if len(otherAppliedRules) == 0 && !ruleIsEpsilon {
 				newProd.RHS = append(newProd.RHS, rule)
 			} else {
-				newProd.RHS = append(newProd.RHS, prevAppliedRules...)
+				newProd.RHS = append(newProd.RHS, otherAppliedRules...)
 			}
+		}
+	}
+	return newProd
+}
+
+// Deals with removing/applying all instances of all the other productions
+// for our given production.
+func removeAnyOtherProduction(prod *Production, others []*Production) *Production {
+	newProd := prod
+	if len(others) > 0 {
+		newProd = &Production{
+			Name:   prod.Name,
+			Params: prod.Params,
+		}
+		epsilon := []RHSRuleSymbol{}
+		for _, rule := range prod.RHS {
+			otherAppliedRules := [][]RHSRuleSymbol{}
+			// Flag used to determine whether the current rule has been reduced to A -> ε.
+			ruleIsEpsilon := false
+			for _, other := range others {
+				// In the case our other production is of the form A -> ε
+				// and the rule contains a single symbol then our new rule will be epsilon.
+				if len(rule) == 1 {
+					if other.Name == rule[0].Name() {
+						if len(other.RHS) == 1 && len(other.RHS[0]) == 1 &&
+							other.RHS[0][0].Name() == "[empty]" {
+							ruleIsEpsilon = true
+							epsilon = []RHSRuleSymbol{&TerminalRHSRuleSymbol{
+								name: "[empty]",
+							}}
+						}
+					}
+				} else if len(rule) > 1 {
+					modifiedRule := []RHSRuleSymbol{}
+					modifiedNewRules := [][]RHSRuleSymbol{}
+					for _, symbol := range rule {
+						// For now we only support A -> ε rules but there might arise a need
+						// to apply other productions and extract their rules to the current production.
+						if other.Name != symbol.Name() {
+							modifiedRule = append(modifiedRule, symbol)
+						}
+					}
+					otherAppliedRules = append(otherAppliedRules, modifiedRule)
+					otherAppliedRules = append(otherAppliedRules, modifiedNewRules...)
+				}
+			}
+			// If rule has been reduced to epsilon then we don't want to add the original rule
+			// with the non-terminal reference.
+			if len(otherAppliedRules) == 0 && !ruleIsEpsilon {
+				newProd.RHS = append(newProd.RHS, rule)
+			} else {
+				newProd.RHS = append(newProd.RHS, otherAppliedRules...)
+			}
+		}
+		// Finally add epsilon to the end if it is set and it is not already
+		// in our rule set.
+		if len(epsilon) > 0 && !ruleExistsInAny(epsilon, newProd.RHS) {
+			newProd.RHS = append(newProd.RHS, epsilon)
 		}
 	}
 	return newProd
@@ -342,16 +448,16 @@ func ruleExistsInAny(rule []RHSRuleSymbol, ruleSets ...[][]RHSRuleSymbol) bool {
 			for !found && k < len(ruleSets[i][j]) {
 				current := ruleSets[i][j]
 				l := 0
-				match := true
 				if len(rule) == len(current) {
+					match := true
 					for match && l < len(current) {
-						if rule[l] != current[l] {
+						if rule[l].Name() != current[l].Name() {
 							match = false
 						}
 						l++
 					}
+					found = match
 				}
-				found = match
 				k++
 			}
 			j++
@@ -417,7 +523,10 @@ func leftFactorRules(rules [][]RHSRuleSymbol, prodName string, prodParams []stri
 						}
 					}
 				}
-				betas = append(betas, beta)
+				// Prevent duplicates (Especially an issue if multiple epsilons occur).
+				if !containsRule(betas, beta) {
+					betas = append(betas, beta)
+				}
 			} else if !isFirstSymbolSame(rule, rules[j]) {
 				gammas = append(gammas, rules[j])
 			}

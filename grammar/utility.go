@@ -16,7 +16,7 @@ func ExtractConditionalPartRules(list []interface{}) ([]RHSRuleSymbol, error) {
 	for _, symbol := range list {
 		symbolStr, symbolIsStr := symbol.(string)
 		if symbolIsStr {
-			matched, err := regexp.MatchString("^<\\w+>$", symbolStr)
+			matched, err := regexp.MatchString("^<(\\w|')+>$", symbolStr)
 			if err != nil {
 				return parts, err
 			}
@@ -43,7 +43,7 @@ func ExtractConditionalPartRules(list []interface{}) ([]RHSRuleSymbol, error) {
 					if valueIsMapSlice {
 						name, isNameString := v.Key.(string)
 						if isNameString {
-							matched, err := regexp.MatchString("^<\\w+>$", name)
+							matched, err := regexp.MatchString("^<(\\w|')+>$", name)
 							if err != nil {
 								return parts, err
 							}
@@ -131,76 +131,133 @@ func ExtractLookaheadExclusions(list []interface{}) [][]RHSRuleSymbol {
 	return rules
 }
 
+// ExpandOptionals deals with expanding all right-hand side rule
+// sets with optional symbols to the multiple rules represented.
+func ExpandOptionals(grammar *Grammar) {
+	for _, prod := range grammar.Productions {
+		newRules := [][]RHSRuleSymbol{}
+		epsilon := []RHSRuleSymbol{}
+		for _, rule := range prod.RHS {
+			optionalSymbolPositions := []int{}
+			for k, symbol := range rule {
+				params, isNtParams := symbol.Params().(*NtRHSParams)
+				if isNtParams && params != nil {
+					// The optional parameter is only available for non-terminal symbols.
+					if params.Optional != nil && *params.Optional {
+						optionalSymbolPositions = append(optionalSymbolPositions, k)
+					}
+				}
+			}
+			newRules = append(newRules, rule)
+			// Now for each optional symbol create a new rule
+			// without the given symbol.
+			for _, pos := range optionalSymbolPositions {
+				newRule := []RHSRuleSymbol{}
+				if pos+1 < len(rule) {
+					for k := range rule {
+						if k != pos {
+							newRule = append(newRule, rule[k])
+						}
+					}
+				}
+				// For the empty rule, make it the epsilon rule for the current
+				// production if it doesn't already have the epsilon rule.
+				if len(newRule) == 0 && len(epsilon) == 0 {
+					epsilon = []RHSRuleSymbol{&TerminalRHSRuleSymbol{
+						name: "[empty]",
+					}}
+				} else if len(newRule) > 0 {
+					newRules = append(newRules, newRule)
+				}
+			}
+		}
+		if len(epsilon) > 0 {
+			newRules = append(newRules, epsilon)
+		}
+		prod.RHS = newRules
+	}
+}
+
 // Prints the provided grammar to a string
 // for debugging purposes.
 func sprintGrammar(grammar Grammar) string {
 	output := ""
 	for _, prod := range grammar.Productions {
-		params := "["
-		for i, param := range prod.Params {
-			params += param
-			if i < len(prod.Params)-1 {
-				params += ", "
-			}
-		}
-		params += "]"
-		output += prod.Name + params + ":\n"
-		for _, rule := range prod.RHS {
-			symbolNames := ""
-			for _, symbol := range rule {
-				symbolName := symbol.Name()
-				if len(symbol.Name()) == 0 {
-					symbolConditional, isCond := symbol.(*ConditionalRHSRuleSymbol)
-					if isCond {
-						symbolName = "["
-						for i, condition := range symbolConditional.params.Conditions {
-							if i == 0 {
-								symbolName += condition
-							} else {
-								symbolName += ", " + condition
-							}
-						}
-						symbolName += "]"
-						for _, part := range symbolConditional.Parts {
-							if _, isExclude := part.(*ExcludeRHSRuleSymbol); isExclude {
-								symbolName += " [no " + part.Name() + " here]"
-							} else {
-								symbolName += " " + part.Name()
-							}
-						}
-					} else {
-						symbolLookahead, isLa := symbol.(*LookaheadRHSRuleSymbol)
-						if isLa {
-							symbolName = "[lookahead ∉ 〈 "
-							for i, exclude := range symbolLookahead.params.Exclude {
-								if i > 0 {
-									symbolName += ", "
-								}
-								for j, excludeRule := range exclude {
-									if j > 0 {
-										symbolName += " "
-									}
-									if _, isExclude := excludeRule.(*ExcludeRHSRuleSymbol); isExclude {
-										symbolName += "[no " + excludeRule.Name() + " here]"
-									} else {
-										symbolName += excludeRule.Name()
-									}
-								}
-							}
-							symbolName += " 〉]"
-						}
-					}
-				}
-				if _, isExclude := symbol.(*ExcludeRHSRuleSymbol); isExclude {
-					symbolName = "[no " + symbol.Name() + " here]"
-				}
-				symbolNames += symbolName + " "
-			}
-			output += "    - " + symbolNames + "\n"
-		}
-		output += "\n"
+		output += sprintProduction(*prod)
 	}
 	return output
+}
+
+func sprintProduction(prod Production) string {
+	output := ""
+	params := "["
+	for i, param := range prod.Params {
+		params += param
+		if i < len(prod.Params)-1 {
+			params += ", "
+		}
+	}
+	params += "]"
+	output += prod.Name + params + ":\n"
+	for _, rule := range prod.RHS {
+		symbolNames := ""
+		for _, symbol := range rule {
+			symbolName := symbol.Name()
+			if len(symbol.Name()) == 0 {
+				symbolConditional, isCond := symbol.(*ConditionalRHSRuleSymbol)
+				if isCond {
+					symbolName = "["
+					for i, condition := range symbolConditional.params.Conditions {
+						if i == 0 {
+							symbolName += condition
+						} else {
+							symbolName += ", " + condition
+						}
+					}
+					symbolName += "]"
+					for _, part := range symbolConditional.Parts {
+						if _, isExclude := part.(*ExcludeRHSRuleSymbol); isExclude {
+							symbolName += " [no " + part.Name() + " here]"
+						} else {
+							symbolName += " " + part.Name()
+						}
+					}
+				} else {
+					symbolLookahead, isLa := symbol.(*LookaheadRHSRuleSymbol)
+					if isLa {
+						symbolName = "[lookahead ∉ 〈 "
+						for i, exclude := range symbolLookahead.params.Exclude {
+							if i > 0 {
+								symbolName += ", "
+							}
+							for j, excludeRule := range exclude {
+								if j > 0 {
+									symbolName += " "
+								}
+								if _, isExclude := excludeRule.(*ExcludeRHSRuleSymbol); isExclude {
+									symbolName += "[no " + excludeRule.Name() + " here]"
+								} else {
+									symbolName += excludeRule.Name()
+								}
+							}
+						}
+						symbolName += " 〉]"
+					}
+				}
+			}
+			if _, isExclude := symbol.(*ExcludeRHSRuleSymbol); isExclude {
+				symbolName = "[no " + symbol.Name() + " here]"
+			}
+			symbolNames += symbolName + " "
+		}
+		output += "    - " + symbolNames + "\n"
+	}
+	output += "\n"
+	return output
+}
+
+func printProduction(prod Production) {
+	fmt.Println(sprintProduction(prod))
 }
 
 // Prints the provided grammar to std output

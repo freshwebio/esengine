@@ -11,22 +11,13 @@ import (
 // Loads a grammar fixture by name,
 // returns input grammar followed by expected result grammar
 func loadGrammarFixture(name string) (*Grammar, *Grammar) {
-	inputBytes, err := ioutil.ReadFile("test/fixtures/" + name + "/input.yml")
+	inputBytes, err := ioutil.ReadFile("test/fixtures/" + name + ".yml")
 	if err != nil {
 		panic(err)
 	}
-	inputGrammar := &Grammar{}
-	err = yaml.Unmarshal(inputBytes, inputGrammar)
-	if err != nil {
-		panic(err)
-	}
-	expectedBytes, err := ioutil.ReadFile("test/fixtures/" + name + "/expected.yml")
-	if err != nil {
-		panic(err)
-	}
-	expectedGrammar := &Grammar{}
-	err = yaml.Unmarshal(expectedBytes, expectedGrammar)
-	return inputGrammar, expectedGrammar
+	grammars := []*Grammar{}
+	err = yaml.Unmarshal(inputBytes, &grammars)
+	return grammars[0], grammars[1]
 }
 
 // Determines if the two given grammars are equivalent.
